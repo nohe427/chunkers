@@ -1,7 +1,6 @@
 package chunkers
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 )
@@ -31,12 +30,9 @@ var defaultSplitOptions = SplitOptions{
 
 func splitChunk(currChunks []string, maxLength int, overlap int) (string, string, string) {
 	chunkString := strings.Join(currChunks[:], " ")
-	fmt.Println(chunkString)
 	if len(chunkString) < maxLength {
 		maxLength = len(chunkString)
 	}
-	fmt.Printf("Max Length: %v\n", maxLength)
-	fmt.Printf("Chunk String: %v\n", chunkString)
 	subChunk := chunkString[0:maxLength]
 	restChunk := chunkString[maxLength:]
 
@@ -45,15 +41,10 @@ func splitChunk(currChunks []string, maxLength int, overlap int) (string, string
 		blankPosition = strings.Index(restChunk, "\n")
 	}
 
-	fmt.Printf("Sub String: %v\n", subChunk)
-
 	if blankPosition != -1 {
-		fmt.Println("Blank Position: ", blankPosition)
 		subChunk = subChunk + restChunk[0:blankPosition]
 		restChunk = restChunk[blankPosition+1:]
 	}
-
-	fmt.Printf("Sub String: %v\n", subChunk)
 
 	overlapText := ""
 	if overlap > 0 {
@@ -99,9 +90,19 @@ func Chunk(text string, opts *SplitOptions) []string {
 	}
 
 	re := regexp.MustCompile(regex)
-	baseChunk := re.Split(text, -1)
+	prebaseChunk := re.Split(text, -1)
 
-	fmt.Printf("Base Chunk: %s\n", strings.Join(baseChunk, "|||"))
+	baseChunk := make([]string, 0)
+	chunkLen := 0
+	for _, v := range prebaseChunk {
+		baseChunk = append(baseChunk, v)
+		chunkLen += len(v)
+		match := re.FindString(text[chunkLen:])
+		if match != "" {
+			baseChunk = append(baseChunk, match)
+			chunkLen += len(match)
+		}
+	}
 
 	chunks := make([]string, 0)
 
@@ -111,20 +112,16 @@ func Chunk(text string, opts *SplitOptions) []string {
 
 		subChunk := baseChunk[i]
 		if i+1 < len(baseChunk)-1 {
-			subChunk = subChunk + " " + baseChunk[i+1]
+			subChunk = subChunk + baseChunk[i+1]
 		}
 
 		currChunks = append(currChunks, subChunk)
 		currChunkLength += len(subChunk)
 
 		if currChunkLength >= opts.MinLength {
-			fmt.Println(currChunks)
-			fmt.Println(i)
 			subChunk, restChunk, overlapText := splitChunk(
 				currChunks, opts.MaxLength, opts.Overlap,
 			)
-
-			fmt.Printf("Returned : %s, %s, %s\n", subChunk, restChunk, overlapText)
 
 			chunks = append(chunks, subChunk)
 
@@ -138,18 +135,17 @@ func Chunk(text string, opts *SplitOptions) []string {
 				currChunks = append(currChunks, restChunk)
 			}
 		}
-
-		if len(currChunks) > 0 {
-			subChunk, restChunk, _ := splitChunk(currChunks, opts.MaxLength, opts.Overlap)
-
-			if subChunk != "" {
-				chunks = append(chunks, subChunk)
-			}
-			if restChunk != "" {
-				chunks = append(chunks, restChunk)
-			}
-		}
-
 	}
+	if len(currChunks) > 0 {
+		subChunk, restChunk, _ := splitChunk(currChunks, opts.MaxLength, opts.Overlap)
+
+		if subChunk != "" {
+			chunks = append(chunks, subChunk)
+		}
+		if restChunk != "" {
+			chunks = append(chunks, restChunk)
+		}
+	}
+
 	return chunks
 }
